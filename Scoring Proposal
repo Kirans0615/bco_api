@@ -1,0 +1,111 @@
+class Bco:
+    def __init__(self, contents):
+        self.contents = contents
+        self.score = 0
+
+def bco_score(bco_instance: Bco) -> Bco:
+    """BCO Score
+
+    Process and score BioCompute Objects (BCOs).
+    """
+    contents = bco_instance.contents
+    score = 0
+
+    # Provenance Domain scoring
+    prov_domain = contents.get("provenance_domain", {})
+    if all(key in prov_domain for key in ["name", "version", "license", "derived_from", "created", "modified"]):
+        score += 1
+    if all(key in prov_domain for key in ["obsolete_date", "embargo"]):
+        score += 1
+    if len(prov_domain.get("contributors", [])) >= 3:
+        score += 1
+    if "review" in prov_domain:
+        score += 1
+
+    # Usability Domain scoring
+    usability_domain = contents.get("usability_domain", [])
+    if len(usability_domain) >= 3:
+        score += 1
+
+    # Description Domain scoring
+    description_domain = contents.get("description_domain", {})
+    if len(description_domain.get("keywords", [])) >= 3:
+        score += 1
+    if "platforms" in description_domain:
+        # Assuming verification with repo is done externally
+        score += 1
+
+    # Extension Domain scoring
+    extension_domain = contents.get("extension_domain", None)
+    if extension_domain:
+        score += 2
+
+    # Parametric Domain scoring
+    parametric_domain = contents.get("parametric_domain", {}).get("steps", [])
+    if len(parametric_domain) >= 3:
+        score += 1
+
+    # I/O Domain scoring
+    io_domain = contents.get("io_domain", {})
+    input_subdomain = io_domain.get("input_subdomain", [])
+    output_subdomain = io_domain.get("output_subdomain", [])
+    score += min(len(input_subdomain), len(output_subdomain))
+
+    # Execution Domain scoring
+    exec_domain = contents.get("execution_domain", {})
+    if "script_driver" in exec_domain:
+        score += 1
+    if "scripts" in exec_domain:
+        score += sum(1 for script in exec_domain["scripts"] if "prerequisite" in script)
+    if "external_data_endpoints" in exec_domain:
+        score += len(exec_domain["external_data_endpoints"])
+
+    # Error Domain scoring
+    error_domain = contents.get("error_domain", {})
+    if "algorithmic_error" in error_domain and "empirical_error" in error_domain:
+        score += 2
+
+    bco_instance.score = score
+    return bco_instance
+
+# Example usage:
+bco_contents = {
+    "provenance_domain": {
+        "name": "example",
+        "version": "1.0",
+        "license": "MIT",
+        "derived_from": "base",
+        "created": "2021-01-01",
+        "modified": "2021-06-01",
+        "obsolete_date": "2023-01-01",
+        "embargo": "2022-01-01",
+        "contributors": ["Alice", "Bob", "Carol"],
+        "review": "review_text"
+    },
+    "usability_domain": ["use1", "use2", "use3"],
+    "description_domain": {
+        "keywords": ["keyword1", "keyword2", "keyword3"],
+        "platforms": ["platform1", "platform2"]
+    },
+    "extension_domain": {},
+    "parametric_domain": {
+        "steps": ["step1", "step2", "step3"]
+    },
+    "io_domain": {
+        "input_subdomain": ["input1", "input2"],
+        "output_subdomain": ["output1", "output2"]
+    },
+    "execution_domain": {
+        "script_driver": "driver_script",
+        "scripts": [{"prerequisite": "req1"}, {"prerequisite": "req2"}],
+        "external_data_endpoints": ["endpoint1", "endpoint2"]
+    },
+    "error_domain": {
+        "algorithmic_error": "alg_error",
+        "empirical_error": "emp_error"
+    }
+}
+
+bco_instance = Bco(bco_contents)
+scored_bco = bco_score(bco_instance)
+print(scored_bco.score)  # Output should be the total score based on the provided domains
